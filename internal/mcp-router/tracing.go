@@ -82,9 +82,11 @@ func spanAttributes(mcpReq *MCPRequest) []attribute.KeyValue {
 func recordError(span trace.Span, err error, statusCode int32) {
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
-	span.SetAttributes(
-		attribute.String("error.type", fmt.Sprintf("%T", err)),
-		attribute.String("error_source", "ext-proc"),
-		attribute.Int("http.status_code", int(statusCode)),
-	)
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("error.type", fmt.Sprintf("%T", err)),
+			attribute.String("error_source", "ext-proc"),
+			attribute.Int("http.status_code", int(statusCode)),
+		)
+	}
 }

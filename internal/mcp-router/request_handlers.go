@@ -215,13 +215,19 @@ func (s *ExtProcServer) RouteMCPRequest(ctx context.Context, mcpReq *MCPRequest)
 	s.Logger.DebugContext(ctx, "HandleMCPRequest ", "session id", mcpReq.GetSessionID())
 	switch {
 	case mcpReq.isElicitationResponse():
-		span.SetAttributes(attribute.String("mcp.route", "elicitation-response"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("mcp.route", "elicitation-response"))
+		}
 		return s.HandleElicitationResponse(ctx, mcpReq)
 	case mcpReq.Method == methodToolCall:
-		span.SetAttributes(attribute.String("mcp.route", "tool-call"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("mcp.route", "tool-call"))
+		}
 		return s.HandleToolCall(ctx, mcpReq)
 	default:
-		span.SetAttributes(attribute.String("mcp.route", "broker"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("mcp.route", "broker"))
+		}
 		return s.HandleNoneToolCall(ctx, mcpReq)
 	}
 }
@@ -255,7 +261,9 @@ func (s *ExtProcServer) HandleToolCall(ctx context.Context, mcpReq *MCPRequest) 
 	if toolName == "" {
 		s.Logger.ErrorContext(ctx, "[EXT-PROC] HandleRequestBody no tool name set in tools/call")
 		span.SetStatus(codes.Error, "no tool name set")
-		span.SetAttributes(attribute.String("error.type", "missing_tool_name"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("error.type", "missing_tool_name"))
+		}
 		calculatedResponse.WithImmediateResponse(400, "no tool name set")
 		return calculatedResponse.Build()
 	}
@@ -263,7 +271,9 @@ func (s *ExtProcServer) HandleToolCall(ctx context.Context, mcpReq *MCPRequest) 
 		s.Logger.ErrorContext(ctx, "session validation failed", "session", mcpReq.GetSessionID(), "error", sessionErr)
 		span.RecordError(sessionErr)
 		span.SetStatus(codes.Error, sessionErr.Error())
-		span.SetAttributes(attribute.String("error.type", "invalid_session"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("error.type", "invalid_session"))
+		}
 		calculatedResponse.WithImmediateResponse(sessionErr.Code(), sessionErr.Error())
 		return calculatedResponse.Build()
 	}
@@ -291,7 +301,9 @@ func (s *ExtProcServer) HandleToolCall(ctx context.Context, mcpReq *MCPRequest) 
 		s.Logger.DebugContext(ctx, "no server for tool", "toolName", toolName)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "tool not found")
-		span.SetAttributes(attribute.String("error.type", "tool_not_found"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("error.type", "tool_not_found"))
+		}
 		calculatedResponse.WithImmediateJSONRPCResponse(200,
 			[]*corev3.HeaderValueOption{
 				{
@@ -307,10 +319,12 @@ data: {"result":{"content":[{"type":"text","text":"MCP error -32602: Tool not fo
 		return calculatedResponse.Build()
 	}
 
-	span.SetAttributes(
-		attribute.String("mcp.server", serverInfo.Name),
-		attribute.String("mcp.server.hostname", serverInfo.Hostname),
-	)
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("mcp.server", serverInfo.Name),
+			attribute.String("mcp.server.hostname", serverInfo.Hostname),
+		)
+	}
 	if annotations, hasAnnotations := s.Broker.ToolAnnotations(serverInfo.ID(), toolName); hasAnnotations {
 		// build header value (e.g. readOnly=true,destructive=false,openWorld=true)
 		var parts []string
@@ -361,7 +375,9 @@ data: {"result":{"content":[{"type":"text","text":"MCP error -32602: Tool not fo
 		s.Logger.ErrorContext(ctx, "failed to get session from cache", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "session cache error")
-		span.SetAttributes(attribute.String("error.type", "session_cache_error"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("error.type", "session_cache_error"))
+		}
 		calculatedResponse.WithImmediateResponse(500, "internal error")
 		return calculatedResponse.Build()
 	}
@@ -382,7 +398,9 @@ data: {"result":{"content":[{"type":"text","text":"MCP error -32602: Tool not fo
 			s.Logger.ErrorContext(ctx, "failed to get remote mcp server session id ", "error ", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "session initialization failed")
-			span.SetAttributes(attribute.String("error.type", "session_init_error"))
+			if span.IsRecording() {
+				span.SetAttributes(attribute.String("error.type", "session_init_error"))
+			}
 			return calculatedResponse.Build()
 		}
 		remoteMCPSeverSession = id
@@ -400,7 +418,9 @@ data: {"result":{"content":[{"type":"text","text":"MCP error -32602: Tool not fo
 		s.Logger.ErrorContext(ctx, "failed to marshal body to bytes ", "error ", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "body marshal failed")
-		span.SetAttributes(attribute.String("error.type", "marshal_error"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("error.type", "marshal_error"))
+		}
 		calculatedResponse.WithImmediateResponse(500, "internal error")
 		return calculatedResponse.Build()
 	}
@@ -409,7 +429,9 @@ data: {"result":{"content":[{"type":"text","text":"MCP error -32602: Tool not fo
 		s.Logger.ErrorContext(ctx, "failed to parse url for backend ", "error ", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "path parse failed")
-		span.SetAttributes(attribute.String("error.type", "path_parse_error"))
+		if span.IsRecording() {
+			span.SetAttributes(attribute.String("error.type", "path_parse_error"))
+		}
 		calculatedResponse.WithImmediateResponse(500, "internal error")
 		return calculatedResponse.Build()
 	}

@@ -241,7 +241,9 @@ func (s *ExtProcServer) Process(stream extProcV3.ExternalProcessor_ProcessServer
 			s.Logger.DebugContext(ctx, "[ext_proc ] Process: ProcessingRequest_ResponseHeaders", "request id:", requestID)
 
 			statusCode := getSingleValueHeader(r.ResponseHeaders.Headers, ":status")
-			span.SetAttributes(attribute.String("http.status_code", statusCode))
+			if span.IsRecording() {
+				span.SetAttributes(attribute.String("http.status_code", statusCode))
+			}
 
 			if mcpRequest != nil && mcpRequest.isToolCall() {
 				clientElicitation, elErr := s.SessionCache.GetClientElicitation(ctx, mcpRequest.GetSessionID())
